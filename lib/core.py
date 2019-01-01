@@ -6,7 +6,7 @@ import dns.resolver
 
 
 class check():
-    def __init__(self, nic_name):
+    def __init__(self, nic_name: str):
         self.nic_name = nic_name
         self.ip = ip_check(nic_name)
         self.ping = ping_check(test_count=1)
@@ -15,7 +15,7 @@ class check():
 
 
 class ip_check():
-    def __init__(self, nic_name, ipv4_addr="0.0.0.0", ipv4_prefix=32, v4status=False, ipv6_addr="::", ipv6_prefix=128, v6status=False):
+    def __init__(self, nic_name: str, ipv4_addr="0.0.0.0", ipv4_prefix=32, v4status=False, ipv6_addr="::", ipv6_prefix=128, v6status=False):
         self.ipv4_addr = ipv4_addr
         self.ipv4_prefix = ipv4_prefix
         self.v4status = v4status
@@ -24,7 +24,7 @@ class ip_check():
         self.v6status = v6status
         self._test(nic_name)
 
-    def _test(self, nic_name):
+    def _test(self, nic_name: str) -> None:
         result = netifaces.ifaddresses(nic_name)
         self.ipv4_addr = result[netifaces.AF_INET][0]['addr']
         self.ipv4_prefix = iptools.ipv4.netmask2prefix(
@@ -34,7 +34,7 @@ class ip_check():
             "/")[1]
         self._check()
 
-    def _check(self):
+    def _check(self) -> None:
         # debug
         self.v4status = True
         self.v6status = True
@@ -51,7 +51,7 @@ class ping_check():
         self.v6status = v4status
         self._test()
 
-    def _test(self):
+    def _test(self) -> None:
         self.v4response = pings.Ping().ping(self.v4target, times=self.test_count)
         self.v4status = self.v4response.is_reached()
         print(self.v4status)
@@ -69,7 +69,7 @@ class dns_check():
         self.v6status = v6status
         self._test()
 
-    def _test(self):
+    def _test(self) -> None:
         try:
             self.v4response = dns.resolver.query(self.v4target, "A")
             self.v4status = True
@@ -87,11 +87,11 @@ class service_chain():
         self.v4status = v4status
         self.v6status = v6status
 
-    def _test(self):
+    def _test(self) -> None:
         pass
 
 
-def to_dict(data):
+def to_dict(data: ):
     return {
         "ip": {
             "ipv4_addr": data.ip.ipv4_addr,
