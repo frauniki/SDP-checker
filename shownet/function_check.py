@@ -32,7 +32,7 @@ def traceroute(dest_name, max_hops=30):
             recv_socket.close()
 
         if curr_addr is not None:
-            response.append([ttl, curr_addr, curr_name])
+            response.append([ttl, curr_name, curr_addr])
         else:
             response.append([ttl, None, None])
 

@@ -2,3 +2,4 @@ netifaces
 iptools
 pings
 dnspython
+pyfiglet
