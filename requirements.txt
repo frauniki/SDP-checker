@@ -1,3 +1,5 @@
+requests
+prettytable
 netifaces
 iptools
 pings
