@@ -3,21 +3,23 @@ package main
 import (
 	"net"
 	"os"
+	"os/exec"
 	"strconv"
 
 	"github.com/common-nighthawk/go-figure"
 	"github.com/olekukonko/tablewriter"
 	"github.com/sparrc/go-ping"
+	"github.com/spf13/viper"
 )
 
 type Ip struct {
-	network net.IP
+	network net.IPNet
 	address net.IP
 	gateway net.IP
 }
 
 type Response struct {
-	addresses []net.Addr
+	addresses []*Ip
 	pingV4    *ping.Statistics
 	pingV6    *ping.Statistics
 	dnsA      net.IP
@@ -30,6 +32,21 @@ type DropCheck struct {
 	v6target      string
 	pingCount     int
 	response      Response
+	exhibitor     *Exhibitor
+	exhibitorOut  bool
+}
+
+type Exhibitor struct {
+	vlan        int
+	name        string
+	space       string
+	media       string
+	tag         string
+	bat         string
+	addressType string
+	ipV4Address string
+	ipV6Address string
+	dhcp        bool
 }
 
 func (dc *DropCheck) Ip() error {
@@ -37,9 +54,21 @@ func (dc *DropCheck) Ip() error {
 	if err != nil {
 		return err
 	}
-	dc.response.addresses, err = iface.Addrs()
+	addrs, err := iface.Addrs()
 	if err != nil {
 		return nil
+	}
+	for _, addr := range addrs {
+		ip, ipNet, err := net.ParseCIDR(addr.String())
+		if err != nil {
+			return err
+		}
+		ipResult := Ip{
+			address: ip,
+			network: *ipNet,
+			gateway: nil,
+		}
+		dc.response.addresses = append(dc.response.addresses, &ipResult)
 	}
 
 	return nil
@@ -100,9 +129,27 @@ func (dc *DropCheck) AllCheck() error {
 func (dc *DropCheck) Out() error {
 	table := [][]string{}
 	num := 1
+	if dc.exhibitorOut {
+		exh := [][]string{
+			{"Exhibitor", "VLAN", strconv.Itoa(dc.exhibitor.vlan)},
+			{"Exhibitor", "出展社名", dc.exhibitor.name},
+			{"Exhibitor", "メディア", dc.exhibitor.media},
+			{"Exhibitor", "ケーブルタグ", dc.exhibitor.tag},
+			{"Exhibitor", "パッチパネル", dc.exhibitor.bat},
+			{"Exhibitor", "アドレスタイプ", dc.exhibitor.addressType},
+			{"Exhibitor", "IPv4アドレス", dc.exhibitor.ipV4Address},
+			{"Exhibitor", "IPv6アドレス", dc.exhibitor.ipV6Address},
+			{"Exhibitor", "DHCP", strconv.FormatBool(dc.exhibitor.dhcp)},
+		}
+		table = append(table, exh...)
+	}
 	for _, i := range dc.response.addresses {
-		row := []string{"Interface", "Address#" + strconv.Itoa(num), i.String()}
-		table = append(table, row)
+		iface := [][]string{
+			{"Interface", "Address#" + strconv.Itoa(num), i.network.String()},
+			{"Interface", "Address#" + strconv.Itoa(num), i.address.String()},
+			//{"Interface", "Address#" + strconv.Itoa(num), i.gateway},
+		}
+		table = append(table, iface...)
 		num++
 	}
 	table2 := [][]string{
@@ -138,16 +185,67 @@ func (dc *DropCheck) Out() error {
 	return nil
 }
 
+func (exh *Exhibitor) Search(vlanId int) {
+	exh.vlan = vlanId
+	exh.name, _ = ExhibitorGet(vlanId, "出展社名")
+	exh.space, _ = ExhibitorGet(vlanId, "小間番号")
+	exh.media, _ = ExhibitorGet(vlanId, "メディア")
+	exh.tag, _ = ExhibitorGet(vlanId, "ケーブルタグ")
+	exh.bat, _ = ExhibitorGet(vlanId, "パッチパネル")
+	exh.addressType, _ = ExhibitorGet(vlanId, "アドレスタイプ")
+	exh.ipV4Address, _ = ExhibitorGet(vlanId, "IPv4アドレス")
+	exh.ipV6Address, _ = ExhibitorGet(vlanId, "IPv6アドレス")
+	dhcp, _ := ExhibitorGet(vlanId, "DHCP")
+	exh.dhcp, _ = strconv.ParseBool(dhcp)
+}
+
+func ExhibitorGet(vlanId int, key string) (string, error) {
+	out, err := exec.Command("python3", "pyMapper/map.py", strconv.Itoa(vlanId), key).Output()
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
+
+func loadConfig() (string, error) {
+	viper.SetConfigName("config")
+	viper.AddConfigPath(".")
+	if err := viper.ReadInConfig(); err != nil {
+		return "", err
+	}
+	return viper.GetString("interface.name"), nil
+}
+
 func main() {
+	nic, err := loadConfig()
+	if err != nil {
+		panic(err)
+	}
 	showNet := figure.NewFigure("ShowNet", "3-d", true)
 	dropCheck := figure.NewFigure("DropCheck", "3-d", true)
 	showNet.Print()
 	dropCheck.Print()
+
+	exh := Exhibitor{}
+	exhibitorOut := false
+
+	if len(os.Args) >= 2 {
+		arg := os.Args[1]
+		vlanId, err := strconv.Atoi(arg)
+		if err != nil {
+			panic(err)
+		}
+		exh.Search(vlanId)
+		exhibitorOut = true
+	}
+
 	drop := DropCheck{
-		interfaceName: "en0",
+		interfaceName: nic,
 		v4target:      "ipv4.google.com",
 		v6target:      "ipv6.google.com",
-		pingCount:     3,
+		pingCount:     1,
+		exhibitor:     &exh,
+		exhibitorOut:  exhibitorOut,
 	}
 	if err := drop.AllCheck(); err != nil {
 		panic(err)
