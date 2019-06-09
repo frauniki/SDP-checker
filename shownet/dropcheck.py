@@ -30,9 +30,9 @@ class DropCheck:
     def all_check(self):
         self.aa_title()
         self.ip()
-        self.ping()
+        # self.ping()
         self.dns()
-        self.service()
+        # self.service()
         self.http()
         self._console_out("* Complite!")
 
@@ -51,6 +51,8 @@ class DropCheck:
         self._console_out(
             f"Starting: IP Check\nInterface = {self.nic_name}\n", True)
         result = netifaces.ifaddresses(self.nic_name)
+        self.gateway_v4 = netifaces.gateways()[netifaces.AF_INET][0][0]
+        self.gateway_v6 = netifaces.gateways()[netifaces.AF_INET6][0][0]
 
         try:
             self.response.ip_v4.address = result[netifaces.AF_INET][0]['addr']
@@ -74,10 +76,11 @@ class DropCheck:
     def ping(self):
         self._console_out(
             f"Starting: Ping Check\nIPv4 Target Host = {self.v4target}\nIPv6 Target Host = {self.v6target}\n", True)
+        """
         self.response.ping_v4 = pings.Ping(quiet=(not self.debug)).ping(
             self.v4target, times=self.ping_test_count)
         self.response.ping_v6 = pings.Ping().ping(
-            self.v6target, times=self.ping_test_count)
+            self.v6target, times=self.ping_test_count, v6=True)
 
         ping_append_method(self.response.ping_v4)
         ping_append_method(self.response.ping_v6)
@@ -85,6 +88,11 @@ class DropCheck:
         if self.console_out:
             self.response.ping_v4.table_console_out()
             self.response.ping_v6.table_console_out()
+        """
+        ping.verbose_ping(self.v4target, timeout=1000, count=self.ping_test_count,
+                          packet_size=1472)
+        ping.verbose_ping(self.v6target, timeout=1000, count=self.ping_test_count,
+                          packet_size=1472)
 
     def dns(self):
         self._console_out(
@@ -114,11 +122,11 @@ class DropCheck:
                 traceroute(self.v4target))
         except Exception as err:
             print(f"service check error -> {err}")
-        try:
-            self.response.service_v6.data = self.function_replace(
-                traceroute(self.v6target))
-        except Exception as err:
-            print(f"service check error -> {err}")
+        # try:
+        self.response.service_v6.data = self.function_replace(
+            traceroute(self.v6target, v6=True))
+        # except Exception as err:
+        # print(f"service check error -> {err}")
 
         if self.console_out:
             self.response.service_v4.table_console_out()

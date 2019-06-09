@@ -2,8 +2,12 @@ import sys
 import socket
 
 
-def traceroute(dest_name, max_hops=30):
-    dest_addr = socket.gethostbyname(dest_name)
+def traceroute(dest_name, max_hops=30, v6=False):
+    try:
+        dest_addr = socket.gethostbyname(dest_name)
+    except:
+        pass
+        # dest_addr =
 
     socket.setdefaulttimeout(1)
     icmp = socket.getprotobyname('icmp')
@@ -11,8 +15,14 @@ def traceroute(dest_name, max_hops=30):
     response = []
 
     while True:
-        recv_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, icmp)
-        send_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, icmp)
+        if v6:
+            recv_socket = socket.socket(socket.AF_INET6, socket.SOCK_RAW, icmp)
+            send_socket = socket.socket(
+                socket.AF_INET6, socket.SOCK_DGRAM, icmp)
+        else:
+            recv_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, icmp)
+            send_socket = socket.socket(
+                socket.AF_INET, socket.SOCK_DGRAM, icmp)
         send_socket.setsockopt(socket.SOL_IP, socket.IP_TTL, ttl)
         recv_socket.bind(("", 0))
         send_socket.sendto(b'\x08\x00\xf5\xfc\x01\x01\x01\x02', (dest_addr, 0))
