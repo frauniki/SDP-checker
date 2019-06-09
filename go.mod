@@ -9,5 +9,6 @@ require (
 	github.com/miekg/dns v1.1.13 // indirect
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/sparrc/go-ping v0.0.0-20190604181555-e33cfb8ae7ed
+	github.com/spf13/viper v1.4.0
 	golang.org/x/net v0.0.0-20190607181551-461777fb6f67 // indirect
 )
